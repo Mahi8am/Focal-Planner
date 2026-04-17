@@ -7,8 +7,8 @@ export function toDateKey(date: Date): string {
 
 // export function todayKey(): string { return toDateKey(new Date()); }
 
-
 // const DEV_FAKE_TODAY: string | null = null;
+
 const DEV_FAKE_TODAY = '2026-04-25';
 // Example: '2026-04-25'
 // Set to null to disable
@@ -17,6 +17,8 @@ export function todayKey(): string {
   if (DEV_FAKE_TODAY) return DEV_FAKE_TODAY;
   return toDateKey(new Date());
 }
+
+
 
 
 

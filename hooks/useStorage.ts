@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppStorage, DayData, Task, SlotId } from '../types';
 import { STORAGE_KEY, SLOTS, INSTALL_DATE_KEY } from '../constants';
-import { todayKey, generateId, isPast, fromDateKey, toDateKey } from '../utils/dateUtils';
-
+import { todayKey, generateId, isPast } from '../utils/dateUtils';
 
 const defaultStorage = (): AppStorage => ({ days: {} });
 
@@ -168,26 +167,24 @@ export function useStorage(resetKey: number = 0) {
   //   - it is AFTER the install date (on or after install date — install day itself is not blocked
   //     because the user just installed; days strictly before install are never blocked)
   //   - it has at least one slot that is empty OR still 'planned'
-const getBlockingDays = useCallback((): string[] => {
-  const blocking: string[] = [];
-
-  const today = fromDateKey(todayKey());
-  const install = fromDateKey(installDate || todayKey());
-
-  for (let d = new Date(install); d < today; d.setDate(d.getDate() + 1)) {
-    const key = toDateKey(d);
-    const day = data.days[key];
-
-    const hasUnresolved = !day || SLOTS.some(s => {
-      const t = day.tasks[s.id];
-      return !t || t.status === 'planned';
-    });
-
-    if (hasUnresolved) blocking.push(key);
-  }
-
-  return blocking;
-}, [data, installDate]);
+  const getBlockingDays = useCallback((): string[] => {
+    const today   = todayKey();
+    // installDate may be empty string during the brief window before load() sets it.
+    // Fall back to today so nothing blocks before we know the install date.
+    const install = installDate || today;
+    const blocking: string[] = [];
+    for (const dateKey of Object.keys(data.days)) {
+      if (dateKey >= today)    continue; // today or future — not blocking
+      if (dateKey < install)   continue; // before install date — ignore
+      const day = data.days[dateKey];
+      const hasUnresolved = SLOTS.some(s => {
+        const t = day.tasks[s.id];
+        return !t || t.status === 'planned';
+      });
+      if (hasUnresolved) blocking.push(dateKey);
+    }
+    return blocking.sort();
+  }, [data, installDate]);
 
   const canPlanFuture = useCallback((): boolean => getBlockingDays().length === 0, [getBlockingDays]);
 

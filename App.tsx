@@ -40,7 +40,6 @@ const TABS: { id: Tab; icon: any; label: string }[] = [
 const REAL_NAME = { title: 'FOCAL', sub: 'PLANNER' };
 
 function AppInner() {
-  const manualNavRef = useRef(false);
   const insets = useSafeAreaInsets();
   const [tab, setTab]                       = useState<Tab>('planner');
   const [currentDateKey, setCurrentDateKey] = useState(todayKey());
@@ -74,25 +73,17 @@ function AppInner() {
 
   // ── Navigate to first blocking past day once data is loaded ────────────────
   useEffect(() => {
-  if (!loaded) return;
-
-  // 🚫 Skip override if user manually navigated
-  if (manualNavRef.current) {
-    manualNavRef.current = false;
-    return;
-  }
-
-  const blocking = getBlockingDays();
-  if (blocking.length > 0) {
-    setCurrentDateKey(blocking[0]);
-    setTab('planner');
-
-    if (!pastWarningShownRef.current) {
-      pastWarningShownRef.current = true;
-      setShowPastWarning(true);
+    if (!loaded) return;
+    const blocking = getBlockingDays();
+    if (blocking.length > 0) {
+      setCurrentDateKey(blocking[0]);
+      setTab('planner');
+      if (!pastWarningShownRef.current) {
+        pastWarningShownRef.current = true;
+        setShowPastWarning(true);
+      }
     }
-  }
-}, [loaded]);
+  }, [loaded]);
 
   // ── Header easter egg ──────────────────────────────────────────────────────
   const tabScales        = useRef(TABS.map(() => new Animated.Value(1))).current;
@@ -142,14 +133,14 @@ function AppInner() {
       Animated.timing(tabScales[idx], { toValue: 1.2, duration: 80, useNativeDriver: true }),
       Animated.spring(tabScales[idx], { toValue: 1, tension: 200, friction: 8, useNativeDriver: true }),
     ]).start();
-    // if (newTab === 'planner') {
-    //   // Respect the hard lock — if there are blocking past days, go there, not today
-    //   const blocking = getBlockingDays();
-    //   setCurrentDateKey(blocking.length > 0 ? blocking[0] : todayKey());
-    //   resetHeaderName();
-    // }
+    if (newTab === 'planner') {
+      // Respect the hard lock — if there are blocking past days, go there, not today
+      const blocking = getBlockingDays();
+      setCurrentDateKey(blocking.length > 0 ? blocking[0] : todayKey());
+      resetHeaderName();
+    }
     setTab(newTab);
-  },  [tabScales]);
+  }, [resetHeaderName, getBlockingDays]);
 
   // ── Reset (now uses themed modal instead of system Alert) ─────────────────
   const handleReset = useCallback(async () => {
@@ -184,16 +175,21 @@ function AppInner() {
     setCurrentDateKey(toDateKey(d)); resetHeaderName();
   };
   const handleNext = () => {
-    if (!isFuture(currentDateKey) && !canPlanFuture()) return;
     const d = fromDateKey(currentDateKey); d.setDate(d.getDate() + 1);
     setCurrentDateKey(toDateKey(d)); resetHeaderName();
   };
   const handleGoToDay = (dateKey: string) => {
-  manualNavRef.current = true;   // 👈 IMPORTANT
-  setCurrentDateKey(dateKey);
-  resetHeaderName();
-  switchTab('planner');
-};
+    // Set the target date first, then switch tab.
+    // switchTab is NOT used here because it would override currentDateKey with the blocking day.
+    const idx = TABS.findIndex(t => t.id === 'planner');
+    Animated.sequence([
+      Animated.timing(tabScales[idx], { toValue: 1.2, duration: 80, useNativeDriver: true }),
+      Animated.spring(tabScales[idx], { toValue: 1, tension: 200, friction: 8, useNativeDriver: true }),
+    ]).start();
+    setCurrentDateKey(dateKey);
+    resetHeaderName();
+    setTab('planner');
+  };
 
   const isFunnyName  = headerName.title !== REAL_NAME.title;
   const warningColor = isDark ? '#FFFFFF' : colors.red;
@@ -363,7 +359,7 @@ function AppInner() {
         {tab === 'planner' && (
           <DayView
             dateKey={currentDateKey} dayData={dayData}
-            canGoBack={true} canGoForward={isFuture(currentDateKey) || canPlanFuture()}
+            canGoBack={true} canGoForward={true}
             onPrev={handlePrev} onNext={handleNext}
             onGoToToday={handleGoToToday}
             onAdd={(s, t) => addTask(currentDateKey, s, t)}

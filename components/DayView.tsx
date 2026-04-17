@@ -62,7 +62,8 @@ export default function DayView({
   const past    = isPast(dateKey);
   const today   = isToday(dateKey);
   const future  = isFuture(dateKey);
-  const isBlocked = future && blockingDays.length > 0;
+  // Soft lock: no navigation blocking — user can freely browse all days
+  const isBlocked = false;
 
   const completedCount = SLOTS.filter(s => dayData.tasks[s.id]?.status === 'completed').length;
   const failedCount    = SLOTS.filter(s => dayData.tasks[s.id]?.status === 'failed').length;
