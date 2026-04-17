@@ -232,6 +232,7 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
     setSelectedDateKey(newSelected);
     prevSelectedRef.current = newSelected;
     setGridKey(k => k + 1);
+    pulseScale(detailScale);
   }, [today, now]);
 
   const changeMonthRef  = useRef(changeMonthFn);
