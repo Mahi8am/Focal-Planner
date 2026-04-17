@@ -1,8 +1,10 @@
 /**
  * CalendarView.tsx
- * ─────────────────────────────────────────────────────────────────────────────
  * Calendar grid + day detail panel.
- * Failed tasks are shown in colors.failed (configurable in Settings).
+ *
+ * Changes:
+ * - BrokenTaskText: ALL text on the card falls (slot label + task/dash), not just task title
+ * - Detail card pulses on mount (tab switch) AND on selected day change
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -25,41 +27,74 @@ const WEEKDAYS     = ['S','M','T','W','T','F','S'];
 const MONTHS       = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const MONTHS_SHORT = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
-function BrokenTaskText({ text, broken, color }: { text: string; broken: boolean; color: string }) {
-  const anims = useRef(text.split('').map(() => ({
-    y:   new Animated.Value(0),
-    rot: new Animated.Value(0),
-    op:  new Animated.Value(1),
-  }))).current;
+/** A single piece of text that can fall/scatter as part of the broken animation */
+function BrokenChar({ char, broken, color, fontSize, fontWeight, delay }: {
+  char: string; broken: boolean; color: string;
+  fontSize: number; fontWeight: string; delay: number;
+}) {
+  const y   = useRef(new Animated.Value(0)).current;
+  const rot = useRef(new Animated.Value(0)).current;
+  const op  = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (broken) {
-      const animations = anims.map(a => {
-        const delay = Math.random() * 120;
-        return Animated.parallel([
-          Animated.sequence([Animated.delay(delay), Animated.spring(a.y,   { toValue: 40 + Math.random() * 30, useNativeDriver: true, tension: 80, friction: 6 })]),
-          Animated.sequence([Animated.delay(delay), Animated.timing(a.rot, { toValue: (Math.random() - 0.5) * 60, duration: 300, useNativeDriver: true })]),
-          Animated.sequence([Animated.delay(delay + 100), Animated.timing(a.op, { toValue: 0, duration: 200, useNativeDriver: true })]),
-        ]);
-      });
-      Animated.parallel(animations).start();
+      Animated.parallel([
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.spring(y, { toValue: 40 + Math.random() * 30, useNativeDriver: true, tension: 80, friction: 6 }),
+        ]),
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(rot, { toValue: (Math.random() - 0.5) * 60, duration: 300, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.delay(delay + 100),
+          Animated.timing(op, { toValue: 0, duration: 200, useNativeDriver: true }),
+        ]),
+      ]).start();
     } else {
-      anims.forEach(a => { a.y.setValue(0); a.rot.setValue(0); a.op.setValue(1); });
+      y.setValue(0); rot.setValue(0); op.setValue(1);
     }
   }, [broken]);
 
+  const rotate = rot.interpolate({ inputRange: [-60, 60], outputRange: ['-60deg', '60deg'] });
+
+  return (
+    <Animated.Text style={{
+      fontSize, fontWeight: fontWeight as any, color,
+      opacity: op,
+      transform: [{ translateY: y }, { rotate }],
+    }}>
+      {char}
+    </Animated.Text>
+  );
+}
+
+/** Renders a line of text character-by-character so each can fall individually */
+function BrokenLine({ text, broken, color, fontSize, fontWeight, delayOffset = 0 }: {
+  text: string; broken: boolean; color: string;
+  fontSize: number; fontWeight: string; delayOffset?: number;
+}) {
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-      {text.split('').map((char, i) => {
-        const rot = anims[i]?.rot.interpolate({ inputRange: [-60, 60], outputRange: ['-60deg', '60deg'] }) ?? '0deg';
-        return (
-          <Animated.Text key={i} style={{ fontSize: 13, fontWeight: '600', color, opacity: anims[i]?.op ?? 1, transform: [{ translateY: anims[i]?.y ?? 0 }, { rotate: rot }] }}>
-            {char}
-          </Animated.Text>
-        );
-      })}
+      {text.split('').map((char, i) => (
+        <BrokenChar
+          key={i} char={char} broken={broken} color={color}
+          fontSize={fontSize} fontWeight={fontWeight}
+          delay={delayOffset + Math.random() * 120}
+        />
+      ))}
     </View>
   );
+}
+
+function pulseScale(anim: Animated.Value) {
+  anim.stopAnimation();
+  Animated.sequence([
+    Animated.timing(anim, { toValue: 0.93, duration: 55, useNativeDriver: true }),
+    Animated.timing(anim, { toValue: 1.04, duration: 55, useNativeDriver: true }),
+    Animated.timing(anim, { toValue: 1,    duration: 40, useNativeDriver: true }),
+  ]).start();
 }
 
 function DayCell({ day, dateKey, isTodayCell, isSelected, past, data, colors, onPress, entryDelay }: {
@@ -113,7 +148,6 @@ function DayCell({ day, dateKey, isTodayCell, isSelected, past, data, colors, on
         <View style={styles.dots}>
           {SLOTS.map(slot => {
             const t = dayData?.tasks[slot.id];
-            // Dot colour: completed = green, failed = failed color, planned = accent, empty = transparent
             const dotColor = t?.status === 'completed'
               ? colors.completed
               : t?.status === 'failed'
@@ -162,19 +196,30 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
 
   const detailSlideX  = useRef(new Animated.Value(0)).current;
   const detailOpacity = useRef(new Animated.Value(1)).current;
+  const detailScale   = useRef(new Animated.Value(1)).current;
   const prevSelectedRef = useRef(selectedDateKey);
+
+  // Pulse the detail card on mount (tab switch)
+  useEffect(() => {
+    pulseScale(detailScale);
+  }, []);
 
   const animateDetailChange = useCallback((newKey: string) => {
     const dir = newKey > prevSelectedRef.current ? -1 : 1;
     prevSelectedRef.current = newKey;
     if (brokenLockRef.current) { setBroken(false); brokenLockRef.current = false; }
+
     detailSlideX.setValue(dir * 40);
     detailOpacity.setValue(0.5);
     setSelectedDateKey(newKey);
+
     Animated.parallel([
       Animated.timing(detailSlideX,  { toValue: 0, duration: 160, useNativeDriver: true }),
       Animated.timing(detailOpacity, { toValue: 1, duration: 120, useNativeDriver: true }),
     ]).start();
+
+    // Also pulse the scale on day change
+    pulseScale(detailScale);
   }, []);
 
   const changeMonthFn = useCallback((newYear: number, newMonth: number, prevYear: number, prevMonth: number) => {
@@ -243,12 +288,13 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
   while (cells.length % 7 !== 0) cells.push(null);
   const years = Array.from({ length: 21 }, (_, i) => now.getFullYear() - 5 + i);
 
-  const detailScale = useRef(new Animated.Value(1)).current;
   const { onTap: detailTap } = useFidget(detailScale);
   const handleDetailTap = () => {
     if (brokenLockRef.current) return;
     detailTap(() => { setBroken(true); brokenLockRef.current = true; }, undefined);
   };
+
+  const selectedDayData = data.days[selectedDateKey];
 
   return (
     <ScrollView
@@ -337,7 +383,7 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
         })}
       </View>
 
-      {/* Legend — now includes Failed */}
+      {/* Legend */}
       <View style={[styles.legend, { borderTopColor: colors.border }]}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: colors.completed }]} />
@@ -349,7 +395,7 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, { backgroundColor: colors.failed }]} />
-          <Text style={[styles.legendText, { color: colors.textMuted }]}>Failed</Text>
+          <Text style={[styles.legendText, { color: colors.textMuted }]}>Skipped</Text>
         </View>
       </View>
 
@@ -362,8 +408,20 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
         <TouchableOpacity activeOpacity={1} onPress={handleDetailTap} style={{ flexDirection: 'row', flex: 1 }}>
           <View style={[styles.dayDetailStripe, { backgroundColor: colors.red }]} />
           <View style={styles.dayDetailInner}>
+
+            {/* Header — date text also falls when broken */}
             <View style={styles.dayDetailHeader}>
-              <Text style={[styles.dayDetailDate, { color: colors.text }]}>{formatDisplayDate(selectedDateKey)}</Text>
+              {broken ? (
+                <BrokenLine
+                  text={formatDisplayDate(selectedDateKey)}
+                  broken={broken} color={colors.text}
+                  fontSize={13} fontWeight="700" delayOffset={0}
+                />
+              ) : (
+                <Text style={[styles.dayDetailDate, { color: colors.text }]}>
+                  {formatDisplayDate(selectedDateKey)}
+                </Text>
+              )}
               <TouchableOpacity style={[styles.goBtn, { backgroundColor: colors.red }]} onPress={() => onGoToDay(selectedDateKey)} activeOpacity={0.8}>
                 <Text style={styles.goBtnText}>OPEN</Text>
                 <ArrowRight size={13} color="#FFF" />
@@ -371,7 +429,7 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
             </View>
 
             {SLOTS.map((slot, i) => {
-              const task = data.days[selectedDateKey]?.tasks[slot.id];
+              const task       = selectedDayData?.tasks[slot.id];
               const isFailed    = task?.status === 'failed';
               const isCompleted = task?.status === 'completed';
 
@@ -381,20 +439,41 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
                 : task?.status === 'planned' ? colors.red
                 : colors.bgElevated;
 
+              const taskColor  = isFailed ? colors.failed : task ? colors.text : colors.textMuted;
+              const labelColor = colors.textMuted;
+
               return (
                 <View key={slot.id} style={[styles.detailSlot, i > 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
                   <View style={[styles.detailDot, { backgroundColor: dotColor }]} />
                   <View style={styles.detailContent}>
-                    <Text style={[styles.detailLabel, { color: colors.textMuted }]}>{slot.label}</Text>
-                    {broken && task?.title
-                      ? <BrokenTaskText text={task.title} broken={broken} color={isFailed ? colors.failed : colors.text} />
-                      : <Text style={[styles.detailTask, {
-                          color: isFailed ? colors.failed : task ? colors.text : colors.textMuted,
-                          fontStyle: isFailed ? 'italic' : 'normal',
-                        }]}>
-                          {task?.title ?? '—'}
-                        </Text>
-                    }
+                    {/* Slot label — also falls when broken */}
+                    {broken ? (
+                      <BrokenLine
+                        text={slot.label}
+                        broken={broken} color={labelColor}
+                        fontSize={9} fontWeight="700" delayOffset={i * 40}
+                      />
+                    ) : (
+                      <Text style={[styles.detailLabel, { color: labelColor }]}>{slot.label}</Text>
+                    )}
+
+                    {/* Task text or dash — falls when broken */}
+                    {broken ? (
+                      <BrokenLine
+                        text={task?.title ?? '—'}
+                        broken={broken}
+                        color={taskColor}
+                        fontSize={13} fontWeight="600"
+                        delayOffset={i * 40 + 20}
+                      />
+                    ) : (
+                      <Text style={[styles.detailTask, {
+                        color: taskColor,
+                        fontStyle: isFailed ? 'italic' : 'normal',
+                      }]}>
+                        {task?.title ?? '—'}
+                      </Text>
+                    )}
                   </View>
                   {isCompleted && <CheckCircle size={16} color={colors.completed} />}
                   {isFailed    && <XCircle     size={16} color={colors.failed} />}

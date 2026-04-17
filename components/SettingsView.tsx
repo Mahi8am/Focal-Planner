@@ -1,13 +1,9 @@
 /**
  * SettingsView.tsx
- * ─────────────────────────────────────────────────────────────────────────────
  * App settings: dark mode, accent color, completed color, failed task color,
  * about card with help icon, and reset button.
  *
- * TEXT YOU CAN EDIT:
- *   Section labels          → strings like 'APPEARANCE', 'ACCENT COLOR', etc.
- *   About subtitle          → search: ABOUT_SUBTITLE
- *   Reset button subtitle   → search: RESET_SUBTITLE
+ * Color cards pulse on mount (tab switch). About card has fidget + spam.
  */
 
 import React, { useRef, useEffect, useState } from 'react';
@@ -31,9 +27,26 @@ interface Props {
   onShowHelp: () => void;
 }
 
-function PopCard({ children, style }: { children: React.ReactNode; style?: any }) {
+function pulseScale(anim: Animated.Value, delay: number = 0) {
+  setTimeout(() => {
+    anim.stopAnimation();
+    Animated.sequence([
+      Animated.timing(anim, { toValue: 0.93, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 1.04, duration: 55, useNativeDriver: true }),
+      Animated.timing(anim, { toValue: 1,    duration: 40, useNativeDriver: true }),
+    ]).start();
+  }, delay);
+}
+
+/** A card that pulses on mount and is tappable for fidget */
+function PulseCard({ children, style, delay = 0 }: { children: React.ReactNode; style?: any; delay?: number }) {
   const scale = useRef(new Animated.Value(1)).current;
   const { onTap } = useFidget(scale);
+
+  useEffect(() => {
+    pulseScale(scale, delay);
+  }, []);
+
   return (
     <TouchableOpacity activeOpacity={1} onPress={() => onTap()}>
       <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
@@ -41,10 +54,14 @@ function PopCard({ children, style }: { children: React.ReactNode; style?: any }
   );
 }
 
-function AboutCard({ colors, style, onShowHelp }: { colors: Colors; style?: any; onShowHelp: () => void }) {
+function AboutCard({ colors, style, onShowHelp, delay = 0 }: { colors: Colors; style?: any; onShowHelp: () => void; delay?: number }) {
   const scale = useRef(new Animated.Value(1)).current;
   const { onTap } = useFidget(scale);
   const [funnyText, setFunnyText] = useState<string | null>(null);
+
+  useEffect(() => {
+    pulseScale(scale, delay);
+  }, []);
 
   const handleTap = () => {
     onTap(
@@ -72,12 +89,10 @@ function AboutCard({ colors, style, onShowHelp }: { colors: Colors; style?: any;
               ) : (
                 <>
                   <Text style={[styles.rowTitle, { color: colors.text }]}>Focal Planner</Text>
-                  {/* ABOUT_SUBTITLE */}
                   <Text style={[styles.rowSub, { color: colors.textMuted }]}>Persona 5 inspired daily diary · v1.0</Text>
                 </>
               )}
             </View>
-            {/* Help icon — opens onboarding modal again */}
             <TouchableOpacity
               onPress={onShowHelp}
               activeOpacity={0.7}
@@ -120,7 +135,7 @@ export default function SettingsView({
 
         {/* APPEARANCE */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>APPEARANCE</Text>
-        <PopCard style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <PulseCard delay={0} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
           <View style={[styles.cardStripe, { backgroundColor: colors.red }]} />
           <View style={styles.cardInner}>
             <View style={styles.row}>
@@ -136,11 +151,11 @@ export default function SettingsView({
               />
             </View>
           </View>
-        </PopCard>
+        </PulseCard>
 
         {/* ACCENT COLOR */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>ACCENT COLOR</Text>
-        <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <PulseCard delay={60} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
           <View style={[styles.cardStripe, { backgroundColor: colors.red }]} />
           <View style={styles.cardInner}>
             {(Object.entries(THEMES) as [ColorTheme, typeof THEMES[ColorTheme]][]).map(([key, val], i) => (
@@ -158,11 +173,11 @@ export default function SettingsView({
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </PulseCard>
 
         {/* COMPLETED COLOR */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>COMPLETED COLOR</Text>
-        <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <PulseCard delay={120} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
           <View style={[styles.cardStripe, { backgroundColor: colors.completed }]} />
           <View style={styles.cardInner}>
             {(Object.entries(COMPLETED_COLORS) as [CompletedColor, typeof COMPLETED_COLORS[CompletedColor]][]).map(([key, val], i) => (
@@ -180,11 +195,11 @@ export default function SettingsView({
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </PulseCard>
 
         {/* FAILED TASK COLOR */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>FAILED TASK COLOR</Text>
-        <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>SKIPPED TASK COLOR</Text>
+        <PulseCard delay={180} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
           <View style={[styles.cardStripe, { backgroundColor: colors.failed }]} />
           <View style={styles.cardInner}>
             {(Object.entries(FAILED_COLORS) as [FailedColor, typeof FAILED_COLORS[FailedColor]][]).map(([key, val], i) => (
@@ -202,7 +217,7 @@ export default function SettingsView({
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </PulseCard>
 
         {/* ABOUT */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>ABOUT</Text>
@@ -210,6 +225,7 @@ export default function SettingsView({
           colors={colors}
           style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
           onShowHelp={onShowHelp}
+          delay={240}
         />
 
         {/* DANGER ZONE */}
@@ -221,7 +237,6 @@ export default function SettingsView({
           <RotateCcw size={18} color={colors.red} />
           <View style={styles.rowText}>
             <Text style={[styles.rowTitle, { color: colors.red }]}>Reset App</Text>
-            {/* RESET_SUBTITLE */}
             <Text style={[styles.rowSub, { color: colors.textMuted }]}>Wipe all data and start fresh</Text>
           </View>
         </TouchableOpacity>

@@ -27,11 +27,55 @@ export function useStorage(resetKey: number = 0) {
       setInstallDate(storedInstall);
 
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed: AppStorage = JSON.parse(raw);
-        // Do NOT auto-complete past planned tasks — let user fill or fail them
-        setData(parsed);
+      let parsed: AppStorage = raw ? JSON.parse(raw) : defaultStorage();
+
+      // Auto-resolve past planned tasks on load:
+      // - Days on or after install date: unnamed slots → skipped, named+planned → completed
+      // - Days before install date: unnamed slots stay empty, named+planned → completed
+      const today   = todayKey();
+      let changed   = false;
+      for (const dateKey of Object.keys(parsed.days)) {
+        if (dateKey >= today) continue; // today/future — skip
+        const beforeInstall = dateKey < storedInstall;
+        const dayTasks = { ...parsed.days[dateKey].tasks };
+        for (const slot of SLOTS) {
+          const t = dayTasks[slot.id];
+          if (!t) {
+            // Empty slot in past
+            if (!beforeInstall) {
+              // On or after install date → becomes skipped
+              dayTasks[slot.id] = {
+                id: generateId(),
+                title: '',
+                status: 'failed',
+                slotId: slot.id, dateKey,
+                createdAt: new Date().toISOString(),
+              };
+              changed = true;
+            }
+            // Before install date → leave empty (no change)
+          } else if (t.status === 'planned') {
+            // Named but not ticked → auto-complete
+            dayTasks[slot.id] = {
+              ...t,
+              status: 'completed',
+              completedAt: new Date().toISOString(),
+            };
+            changed = true;
+          }
+        }
+        if (changed) {
+          parsed = {
+            ...parsed,
+            days: { ...parsed.days, [dateKey]: { dateKey, tasks: dayTasks } },
+          };
+        }
       }
+
+      if (changed) {
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      }
+      setData(parsed);
     } catch (e) {
       console.error('Load error:', e);
     } finally {
@@ -73,20 +117,32 @@ export function useStorage(resetKey: number = 0) {
     const trimmed = title.trim();
     if (!trimmed) return;
     const existing = data.days[dateKey]?.tasks[slotId];
-    // If editing a failed task, promote to completed. Otherwise keep current status.
-    const newStatus = (existing?.status === 'failed') ? 'completed' : (existing?.status ?? 'completed');
+    const past = isPast(dateKey);
+
+    let newStatus: Task['status'];
+    if (existing?.status === 'failed') {
+      // Naming a skipped task → recover to completed
+      newStatus = 'completed';
+    } else if (past) {
+      // Past task edit → completed
+      newStatus = 'completed';
+    } else {
+      newStatus = existing?.status ?? 'planned';
+    }
+
     const task: Task = existing
       ? {
           ...existing,
           title: trimmed,
           status: newStatus,
-          completedAt: newStatus === 'completed' ? new Date().toISOString() : existing.completedAt,
+          completedAt: newStatus === 'completed' ? (existing.completedAt ?? new Date().toISOString()) : existing.completedAt,
         }
       : {
           id: generateId(), title: trimmed,
-          status: 'completed', slotId, dateKey,
+          status: past ? 'completed' : 'planned',
+          slotId, dateKey,
           createdAt: new Date().toISOString(),
-          completedAt: new Date().toISOString(),
+          completedAt: past ? new Date().toISOString() : undefined,
         };
     const newData: AppStorage = {
       ...data,
@@ -116,7 +172,7 @@ export function useStorage(resetKey: number = 0) {
       ? { ...existing, status: 'failed', completedAt: undefined }
       : {
           id: generateId(),
-          title: 'Task Failed',
+          title: '',
           status: 'failed',
           slotId, dateKey,
           createdAt: new Date().toISOString(),
@@ -124,32 +180,6 @@ export function useStorage(resetKey: number = 0) {
     const newData: AppStorage = {
       ...data,
       days: { ...data.days, [dateKey]: { dateKey, tasks: { ...(data.days[dateKey]?.tasks ?? {}), [slotId]: task } } },
-    };
-    await save(newData);
-  }, [data, save]);
-
-  // Batch-fail all unresolved slots on a given day in a single save — prevents
-  // the async race condition that caused only the last slot to be written.
-  const failAllUnresolvedSlots = useCallback(async (dateKey: string) => {
-    const existingDay = data.days[dateKey] ?? { dateKey, tasks: {} };
-    const newTasks = { ...existingDay.tasks };
-    for (const slot of SLOTS) {
-      const t = newTasks[slot.id];
-      if (!t || t.status === 'planned') {
-        newTasks[slot.id] = t
-          ? { ...t, status: 'failed', completedAt: undefined }
-          : {
-              id: generateId(),
-              title: 'Task Failed',
-              status: 'failed',
-              slotId: slot.id, dateKey,
-              createdAt: new Date().toISOString(),
-            };
-      }
-    }
-    const newData: AppStorage = {
-      ...data,
-      days: { ...data.days, [dateKey]: { dateKey, tasks: newTasks } },
     };
     await save(newData);
   }, [data, save]);
@@ -162,35 +192,9 @@ export function useStorage(resetKey: number = 0) {
     await save({ ...data, days: { ...data.days, [dateKey]: { dateKey, tasks: newTasks } } });
   }, [data, save]);
 
-  // A day is "blocking" only if:
-  //   - it is a past day (before today)
-  //   - it is AFTER the install date (on or after install date — install day itself is not blocked
-  //     because the user just installed; days strictly before install are never blocked)
-  //   - it has at least one slot that is empty OR still 'planned'
-  const getBlockingDays = useCallback((): string[] => {
-    const today   = todayKey();
-    // installDate may be empty string during the brief window before load() sets it.
-    // Fall back to today so nothing blocks before we know the install date.
-    const install = installDate || today;
-    const blocking: string[] = [];
-    for (const dateKey of Object.keys(data.days)) {
-      if (dateKey >= today)    continue; // today or future — not blocking
-      if (dateKey < install)   continue; // before install date — ignore
-      const day = data.days[dateKey];
-      const hasUnresolved = SLOTS.some(s => {
-        const t = day.tasks[s.id];
-        return !t || t.status === 'planned';
-      });
-      if (hasUnresolved) blocking.push(dateKey);
-    }
-    return blocking.sort();
-  }, [data, installDate]);
-
-  const canPlanFuture = useCallback((): boolean => getBlockingDays().length === 0, [getBlockingDays]);
-
   return {
     data, loaded, installDate,
-    getDay, addTask, editTask, completeTask, failTask, failAllUnresolvedSlots,
-    deleteTask, getBlockingDays, canPlanFuture,
+    getDay, addTask, editTask, completeTask, failTask,
+    deleteTask,
   };
 }

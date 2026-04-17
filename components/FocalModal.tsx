@@ -1,11 +1,8 @@
 /**
  * FocalModal.tsx
  * ─────────────────────────────────────────────────────────────────────────────
- * Reusable themed modal component for Focal Planner.
- * Replaces all system Alert.alert() calls with on-brand popups.
- *
- * TEXT YOU CAN EDIT:
- *   All modal copy lives in App.tsx — this file is purely structural/visual.
+ * Reusable themed modal. All copy lives in App.tsx — this file is structural.
+ * FeatureRow now accepts a lucide icon component instead of an emoji string.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -25,11 +22,9 @@ interface Props {
   visible: boolean;
   colors: Colors;
   title: string;
-  /** Pass a string for simple text, or React nodes for rich content */
   children: React.ReactNode;
   buttons: FocalModalButton[];
   onDismiss?: () => void;
-  /** Show a decorative accent stripe at the top */
   accentStripe?: boolean;
 }
 
@@ -58,7 +53,6 @@ export default function FocalModal({
             styles.box,
             { backgroundColor: colors.bgCard, borderColor: colors.red, transform: [{ scale: scaleAnim }], opacity: opacityAnim },
           ]}
-          // Prevent tap-through to overlay
         >
           <Pressable onPress={() => {}}>
             {accentStripe && <View style={[styles.stripe, { backgroundColor: colors.red }]} />}
@@ -85,23 +79,19 @@ export default function FocalModal({
               {/* Buttons */}
               <View style={styles.btnRow}>
                 {buttons.map((btn, i) => {
-                  const isSkip    = btn.variant === 'skip';
                   const isDanger  = btn.variant === 'danger';
                   const isPrimary = btn.variant === 'primary' || (!btn.variant && i === buttons.length - 1);
                   const isGhost   = btn.variant === 'ghost';
+                  const isSkip    = btn.variant === 'skip';
 
-                  const bgColor   = isDanger ? colors.red : isPrimary ? colors.red : 'transparent';
-                  const txtColor  = (isDanger || isPrimary) ? '#FFF' : isSkip ? colors.textMuted : colors.red;
-                  const borderCol = isGhost || isSkip ? colors.border : isDanger || isPrimary ? colors.red : colors.red;
+                  const bgColor  = isDanger ? colors.red : isPrimary ? colors.red : 'transparent';
+                  const txtColor = (isDanger || isPrimary) ? '#FFF' : isSkip ? colors.textMuted : colors.red;
+                  const borderCol = isGhost || isSkip ? colors.border : colors.red;
 
                   return (
                     <TouchableOpacity
                       key={i}
-                      style={[
-                        styles.btn,
-                        { backgroundColor: bgColor, borderColor: borderCol },
-                        isSkip && styles.btnSkip,
-                      ]}
+                      style={[styles.btn, { backgroundColor: bgColor, borderColor: borderCol }, isSkip && styles.btnSkip]}
                       onPress={btn.onPress}
                       activeOpacity={0.75}
                     >
@@ -121,11 +111,22 @@ export default function FocalModal({
   );
 }
 
-/** Helper for a styled feature row inside the onboarding modal */
-export function FeatureRow({ icon, title, desc, colors }: { icon: string; title: string; desc: string; colors: Colors }) {
+/**
+ * FeatureRow — icon is a Lucide component (e.g. CalendarDays), not an emoji.
+ */
+export function FeatureRow({
+  icon: Icon, title, desc, colors,
+}: {
+  icon: React.ComponentType<{ size: number; color: string }>;
+  title: string;
+  desc: string;
+  colors: Colors;
+}) {
   return (
     <View style={featureStyles.row}>
-      <Text style={featureStyles.icon}>{icon}</Text>
+      <View style={featureStyles.iconWrap}>
+        <Icon size={18} color={colors.red} />
+      </View>
       <View style={featureStyles.text}>
         <Text style={[featureStyles.title, { color: colors.text }]}>{title}</Text>
         <Text style={[featureStyles.desc,  { color: colors.textMuted }]}>{desc}</Text>
@@ -135,11 +136,11 @@ export function FeatureRow({ icon, title, desc, colors }: { icon: string; title:
 }
 
 const featureStyles = StyleSheet.create({
-  row:   { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
-  icon:  { fontSize: 20, width: 28, textAlign: 'center', marginTop: 1 },
-  text:  { flex: 1 },
-  title: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5, marginBottom: 2 },
-  desc:  { fontSize: 12, lineHeight: 17 },
+  row:      { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
+  iconWrap: { width: 28, alignItems: 'center', marginTop: 1 },
+  text:     { flex: 1 },
+  title:    { fontSize: 13, fontWeight: '800', letterSpacing: 0.5, marginBottom: 2 },
+  desc:     { fontSize: 12, lineHeight: 17 },
 });
 
 const styles = StyleSheet.create({

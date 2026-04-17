@@ -3,11 +3,16 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * Individual time-slot card on the Planner page.
  *
+ * CARD BEHAVIOUR RULES:
+ *   FUTURE  → Task name editable at any time. No tick button.
+ *   TODAY   → Task name editable. Tick button to mark complete/incomplete.
+ *   PAST    → If named but not ticked → auto-completed on transition.
+ *             If unnamed → becomes "skipped" (cross icon, failed color).
+ *             If skipped and then named → becomes completed.
+ *             If before install date and unnamed → stays empty (no skipped).
+ *
  * TEXT YOU CAN EDIT:
- *   "Task Failed"          → failTask() in useStorage.ts sets this as the title
- *   "SKIP"                 → label on the skip button (search: SKIP_BTN_LABEL)
- *   "FAILED"               → badge shown on failed tasks (search: FAILED_BADGE)
- *   "LOCKED"               → shown when slot is blocked (search: LOCKED_TEXT)
+ *   "SKIPPED"              → badge shown on skipped tasks (search: SKIPPED_BADGE)
  *   "What did you do?"     → past-day input placeholder (search: PAST_PLACEHOLDER)
  *   "Plan your task..."    → future input placeholder   (search: FUTURE_PLACEHOLDER)
  *   "Fill in what you did" → empty past slot prompt     (search: EMPTY_PAST_PROMPT)
@@ -28,6 +33,7 @@ interface Props {
   slotId: SlotId; label: string; timeRange: string;
   task?: Task; dateKey: string;
   isToday: boolean; isPast: boolean; isFuture: boolean;
+  isBeforeInstall: boolean;
   onAdd: (slotId: SlotId, title: string) => void;
   onEdit: (slotId: SlotId, title: string) => void;
   onComplete: (slotId: SlotId) => void;
@@ -40,6 +46,7 @@ const ENTRY_OFFSETS = [{ x: -80, y: -20 }, { x: 80, y: -20 }, { x: 0, y: 60 }];
 
 export default function SlotCard({
   slotId, label, timeRange, task, isToday, isPast, isFuture,
+  isBeforeInstall,
   onAdd, onEdit, onComplete, onFail, onDelete, blocked, colors, index, animKey,
 }: Props) {
 
@@ -91,30 +98,51 @@ export default function SlotCard({
     ]).start();
   };
 
-  const isFailed    = task?.status === 'failed';
+  const isSkipped   = task?.status === 'failed';
   const isCompleted = task?.status === 'completed';
   const isPlanned   = task?.status === 'planned';
   const isEmpty     = !task;
 
-  // Show input when: empty slot, OR actively editing (including recovering a failed task)
-  const showInput  = isEmpty || editing;
-  const canComplete = isToday && !!task && !isFailed;
-  // Can edit: today tasks, past tasks, and FAILED tasks (editing a failed task recovers it)
-  const canEdit    = (isToday || isPast) && !!task;
-  const canDelete  = isFuture && isPlanned;
-  // Show skip button only on PAST empty/planned slots (not today, not failed, not completed)
-  const canSkip    = isPast && (isEmpty || isPlanned) && !blocked;
+  // All tasks have editable names at all times
+  // Show input when empty OR actively editing
+  const showInput = isEmpty || editing;
+
+  // Tick/complete toggle: today only, task must exist and not be skipped
+  const canComplete = isToday && !!task && !isSkipped;
+
+  // Edit pencil: shown whenever a task exists (all days, all states)
+  const canEdit = !!task;
+
+  // Delete: future planned tasks only
+  const canDelete = isFuture && isPlanned;
 
   const handleSubmit = () => {
     Keyboard.dismiss();
     const val = inputVal.trim();
-    if (!val) return;
-    if (editing && task) onEdit(slotId, val); else onAdd(slotId, val);
+
+    if (editing && task) {
+      if (!val) {
+        // Name erased on an existing task:
+        // Past/today → becomes skipped (empty-named failed task)
+        // Future planned → delete it back to empty slot
+        if (isFuture) {
+          onDelete(slotId);
+        } else {
+          onFail(slotId);
+        }
+      } else {
+        onEdit(slotId, val);
+      }
+    } else {
+      // Adding to an empty slot — only save if non-empty
+      if (val) onAdd(slotId, val);
+    }
+
     setInputVal(''); setEditing(false);
   };
 
-  // Stripe colour: failed = failed color, completed = completed color, else accent
-  const stripeColor = isFailed
+  // Stripe colour: skipped = failed color, completed = completed color, else accent
+  const stripeColor = isSkipped
     ? colors.failed
     : isCompleted ? colors.completed : colors.red;
 
@@ -148,16 +176,16 @@ export default function SlotCard({
               </View>
 
               {/* Badges */}
-              {isCompleted && !isToday && (
+              {isCompleted && (
                 <View style={[styles.badge, { backgroundColor: colors.completedGlow }]}>
-                  <Text style={[styles.badgeText, { color: colors.completed }]}>DONE</Text>{/* DONE_BADGE */}
+                  <Text style={[styles.badgeText, { color: colors.completed }]}>DONE</Text>
                 </View>
               )}
-              {/* FAILED_BADGE */}
-              {isFailed && (
+              {/* SKIPPED_BADGE */}
+              {isSkipped && (
                 <View style={[styles.badge, { backgroundColor: `${colors.failed}22` }]}>
                   <XCircle size={10} color={colors.failed} style={{ marginRight: 3 }} />
-                  <Text style={[styles.badgeText, { color: colors.failed }]}>FAILED</Text>
+                  <Text style={[styles.badgeText, { color: colors.failed }]}>SKIPPED</Text>
                 </View>
               )}
             </View>
@@ -192,8 +220,8 @@ export default function SlotCard({
                 <Text
                   style={[
                     styles.taskTitle,
-                    { color: isFailed ? colors.failed : isCompleted ? colors.textSub : colors.text },
-                    isFailed && styles.taskTitleFailed,
+                    { color: isSkipped ? colors.failed : isCompleted ? colors.textSub : colors.text },
+                    isSkipped && styles.taskTitleSkipped,
                   ]}
                   numberOfLines={2}
                 >
@@ -201,7 +229,7 @@ export default function SlotCard({
                 </Text>
 
                 <View style={styles.actions}>
-                  {/* Complete toggle (today only, not failed) */}
+                  {/* Complete toggle (today only, not skipped) */}
                   {canComplete && (
                     <Animated.View style={{ transform: [{ scale: checkScale }] }}>
                       <TouchableOpacity
@@ -220,18 +248,24 @@ export default function SlotCard({
                     <CheckCircle size={20} color={colors.completed} />
                   )}
 
-                  {/* Edit (includes failed tasks — editing recovers them) */}
+                  {/* Skipped icon for past skipped tasks */}
+                  {!isToday && isSkipped && (
+                    <XCircle size={20} color={colors.failed} />
+                  )}
+
+                  {/* Edit pencil — available for ALL tasks at all times */}
                   {canEdit && (
                     <TouchableOpacity
                       style={styles.actionBtn}
                       onPress={() => {
-                        setInputVal(isFailed ? '' : task.title);
+                        // For skipped tasks: start with empty input so user can give it a name
+                        setInputVal(isSkipped ? '' : task.title);
                         setEditing(true);
                         setTimeout(() => inputRef.current?.focus(), 80);
                       }}
                       onPressIn={pressBtnIn} onPressOut={pressBtnOut} activeOpacity={1}
                     >
-                      <Edit3 size={15} color={isFailed ? colors.failed : colors.textMuted} />
+                      <Edit3 size={15} color={isSkipped ? colors.failed : colors.textMuted} />
                     </TouchableOpacity>
                   )}
 
@@ -250,7 +284,7 @@ export default function SlotCard({
 
             ) : blocked ? (
               <View style={styles.emptySlot}>
-                <Text style={[styles.blockedText, { color: colors.textMuted }]}>LOCKED</Text>{/* LOCKED_TEXT */}
+                <Text style={[styles.blockedText, { color: colors.textMuted }]}>LOCKED</Text>
               </View>
             ) : (
               /* Empty slot — tap to open input */
@@ -267,18 +301,6 @@ export default function SlotCard({
                 <Text style={[styles.emptyText, { color: colors.textMuted }]}>
                   {isPast ? 'Fill in what you did' : 'Add task'}{/* EMPTY_PAST_PROMPT / EMPTY_FUTURE_PROMPT */}
                 </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* SKIP_BTN_LABEL — shown on empty or still-planned past/today slots */}
-            {canSkip && !editing && (
-              <TouchableOpacity
-                style={[styles.skipBtn, { borderColor: colors.failed }]}
-                onPress={() => onFail(slotId)}
-                activeOpacity={0.7}
-              >
-                <XCircle size={11} color={colors.failed} />
-                <Text style={[styles.skipBtnText, { color: colors.failed }]}>SKIP</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -304,12 +326,10 @@ const styles = StyleSheet.create({
   submitBtn: { borderRadius: 8, padding: 9 },
   taskRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 },
   taskTitle: { fontSize: 16, fontWeight: '700', flex: 1, lineHeight: 22 },
-  taskTitleFailed: { fontStyle: 'italic', opacity: 0.9 },
+  taskTitleSkipped: { fontStyle: 'italic', opacity: 0.9 },
   actions:   { flexDirection: 'row', alignItems: 'center', gap: 12, marginLeft: 10 },
   actionBtn: { padding: 4 },
   emptySlot: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
   emptyText: { fontSize: 13, fontStyle: 'italic' },
   blockedText: { fontSize: 10, letterSpacing: 2, fontWeight: '700' },
-  skipBtn:   { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-end', marginTop: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 6, borderWidth: 1 },
-  skipBtnText: { fontSize: 9, fontWeight: '800', letterSpacing: 1.5 },
 });

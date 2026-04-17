@@ -1,32 +1,29 @@
 /**
  * App.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * ROOT COMPONENT — handles navigation, modals, and tab management.
+ * ROOT COMPONENT — navigation, modals, tab management.
  *
- * ╔══════════════════════════════════════════════════════════════════════════╗
- * ║  TEXT YOU CAN EDIT — search for the section tags below                 ║
- * ╠══════════════════════════════════════════════════════════════════════════╣
- * ║  [ONBOARDING_MODAL]   Welcome popup shown on first install             ║
- * ║  [PAST_DAY_MODAL]     Warning shown when past days need filling        ║
- * ║  [RESET_MODAL]        Confirmation shown before wiping all data        ║
- * ╚══════════════════════════════════════════════════════════════════════════╝
+ * [ONBOARDING_MODAL]  Welcome popup (first install + after reset + help icon)
+ * [RESET_MODAL]       Confirmation before wiping data
  */
 
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  StatusBar, ActivityIndicator, Animated,
+  StatusBar, ActivityIndicator, Animated, Keyboard,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CalendarDays, BookOpen, Settings, HelpCircle } from 'lucide-react-native';
+import {
+  CalendarDays, BookOpen, Settings,
+  CalendarCheck, CheckSquare, Palette, BookMarked,
+} from 'lucide-react-native';
 import DayView from './components/DayView';
 import CalendarView from './components/CalendarView';
 import SettingsView from './components/SettingsView';
 import FocalModal, { FeatureRow } from './components/FocalModal';
 import { useStorage } from './hooks/useStorage';
 import { useTheme } from './hooks/useTheme';
-import { todayKey, isFuture, fromDateKey, toDateKey } from './utils/dateUtils';
+import { todayKey, fromDateKey, toDateKey } from './utils/dateUtils';
 import { FUNNY_NAMES, STORAGE_KEY, INSTALL_DATE_KEY, ONBOARDING_KEY } from './constants';
 import { SlotId } from './types';
 
@@ -45,11 +42,8 @@ function AppInner() {
   const [currentDateKey, setCurrentDateKey] = useState(todayKey());
   const [resetKey, setResetKey]             = useState(0);
 
-  // ── Modal visibility ───────────────────────────────────────────────────────
-  const [showOnboarding,  setShowOnboarding]  = useState(false);
-  const [showPastWarning, setShowPastWarning] = useState(false);
-  const [showResetModal,  setShowResetModal]  = useState(false);
-  const pastWarningShownRef = useRef(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   const {
     colors, toggleTheme, isDark, colorTheme, setColorTheme,
@@ -57,11 +51,11 @@ function AppInner() {
     failedColor, setFailedColor,
   } = useTheme();
   const {
-    data, loaded, getDay, addTask, editTask, completeTask,
-    failTask, failAllUnresolvedSlots, deleteTask, getBlockingDays, canPlanFuture,
+    data, loaded, installDate, getDay, addTask, editTask, completeTask,
+    failTask, deleteTask,
   } = useStorage(resetKey);
 
-  // ── Check onboarding on first load ─────────────────────────────────────────
+  // Show onboarding on first install
   useEffect(() => {
     AsyncStorage.getItem(ONBOARDING_KEY).then(val => {
       if (!val) {
@@ -70,20 +64,6 @@ function AppInner() {
       }
     });
   }, []);
-
-  // ── Navigate to first blocking past day once data is loaded ────────────────
-  useEffect(() => {
-    if (!loaded) return;
-    const blocking = getBlockingDays();
-    if (blocking.length > 0) {
-      setCurrentDateKey(blocking[0]);
-      setTab('planner');
-      if (!pastWarningShownRef.current) {
-        pastWarningShownRef.current = true;
-        setShowPastWarning(true);
-      }
-    }
-  }, [loaded]);
 
   // ── Header easter egg ──────────────────────────────────────────────────────
   const tabScales        = useRef(TABS.map(() => new Animated.Value(1))).current;
@@ -134,15 +114,13 @@ function AppInner() {
       Animated.spring(tabScales[idx], { toValue: 1, tension: 200, friction: 8, useNativeDriver: true }),
     ]).start();
     if (newTab === 'planner') {
-      // Respect the hard lock — if there are blocking past days, go there, not today
-      const blocking = getBlockingDays();
-      setCurrentDateKey(blocking.length > 0 ? blocking[0] : todayKey());
+      setCurrentDateKey(todayKey());
       resetHeaderName();
     }
     setTab(newTab);
-  }, [resetHeaderName, getBlockingDays]);
+  }, [resetHeaderName]);
 
-  // ── Reset (now uses themed modal instead of system Alert) ─────────────────
+  // Reset — also shows onboarding again
   const handleReset = useCallback(async () => {
     const today = todayKey();
     await AsyncStorage.multiSet([
@@ -152,8 +130,9 @@ function AppInner() {
     setCurrentDateKey(today);
     resetHeaderName();
     setTab('planner');
-    pastWarningShownRef.current = false;
     setResetKey(k => k + 1);
+    // Show onboarding after reset
+    setShowOnboarding(true);
   }, [resetHeaderName]);
 
   const handleGoToToday = useCallback(() => {
@@ -167,20 +146,19 @@ function AppInner() {
     </View>
   );
 
-  const dayData      = getDay(currentDateKey);
-  const blockingDays = getBlockingDays();
+  const dayData = getDay(currentDateKey);
 
   const handlePrev = () => {
+    Keyboard.dismiss();
     const d = fromDateKey(currentDateKey); d.setDate(d.getDate() - 1);
     setCurrentDateKey(toDateKey(d)); resetHeaderName();
   };
   const handleNext = () => {
+    Keyboard.dismiss();
     const d = fromDateKey(currentDateKey); d.setDate(d.getDate() + 1);
     setCurrentDateKey(toDateKey(d)); resetHeaderName();
   };
   const handleGoToDay = (dateKey: string) => {
-    // Set the target date first, then switch tab.
-    // switchTab is NOT used here because it would override currentDateKey with the blocking day.
     const idx = TABS.findIndex(t => t.id === 'planner');
     Animated.sequence([
       Animated.timing(tabScales[idx], { toValue: 1.2, duration: 80, useNativeDriver: true }),
@@ -202,110 +180,57 @@ function AppInner() {
         translucent={false}
       />
 
-      {/* ── [ONBOARDING_MODAL] ─────────────────────────────────────────────
-           Edit the title, FeatureRow entries, and button label here.
-      ─────────────────────────────────────────────────────────────────────── */}
+      {/* ── [ONBOARDING_MODAL] ── shown on first install, after reset, and from help icon */}
       <FocalModal
         visible={showOnboarding}
         colors={colors}
         title="WELCOME TO FOCAL"
-        buttons={[
-          {
-            label: "LET'S GO",
-            variant: 'primary',
-            onPress: () => setShowOnboarding(false),
-          },
-        ]}
+        buttons={[{ label: "LET'S GO", variant: 'primary', onPress: () => setShowOnboarding(false) }]}
       >
         <Text style={{ color: colors.textSub, fontSize: 12, marginBottom: 16, lineHeight: 18 }}>
           Your personal daily planner — built around three focused time blocks each day.
         </Text>
         <FeatureRow
           colors={colors}
-          icon="📅"
+          icon={CalendarCheck}
           title="THREE DAILY SLOTS"
           desc="Plan your Morning, Afternoon, and Evening. One task per block keeps you focused."
         />
         <FeatureRow
           colors={colors}
-          icon="✅"
+          icon={CheckSquare}
           title="TRACK COMPLETION"
           desc="Check off tasks as you complete them. Finished days are saved to your calendar."
         />
         <FeatureRow
           colors={colors}
-          icon="📆"
+          icon={CalendarDays}
           title="CALENDAR VIEW"
           desc="Review your history at a glance. Tap any day to see what you planned."
         />
         <FeatureRow
           colors={colors}
-          icon="⚠️"
-          title="PAST DAY REVIEW"
-          desc="If you missed logging a day, you'll be taken there first so nothing is left unrecorded."
+          icon={Palette}
+          title="THEMES & COLORS"
+          desc="Customize accent colors, completion colors, and skipped task colors in Settings."
         />
         <FeatureRow
           colors={colors}
-          icon="🎨"
-          title="THEMES & COLORS"
-          desc="Customize accent colors, completion colors, and failed task colors in Settings."
+          icon={BookMarked}
+          title="PAST DAY LOGGING"
+          desc="Browse back to past days and fill in or name what you accomplished retroactively."
         />
       </FocalModal>
 
-      {/* ── [PAST_DAY_MODAL] ───────────────────────────────────────────────
-           Edit the title, body text, and button labels here.
-           The skip button dismisses the modal and stays on the blocking day.
-      ─────────────────────────────────────────────────────────────────────── */}
-      <FocalModal
-        visible={showPastWarning}
-        colors={colors}
-        title="PAST DAYS PENDING"
-        buttons={[
-          {
-            label: 'SKIP FOR NOW',
-            variant: 'skip',
-            onPress: () => setShowPastWarning(false),
-          },
-          {
-            label: 'GOT IT',
-            variant: 'primary',
-            onPress: () => setShowPastWarning(false),
-          },
-        ]}
-      >
-        <Text style={{ color: colors.textSub, fontSize: 13, lineHeight: 20 }}>
-          You have <Text style={{ color: colors.red, fontWeight: '800' }}>{blockingDays.length} past {blockingDays.length === 1 ? 'day' : 'days'}</Text> with unrecorded tasks.
-        </Text>
-        <Text style={{ color: colors.textSub, fontSize: 13, lineHeight: 20, marginTop: 10 }}>
-          You've been taken to the earliest pending day. Fill in what you accomplished, or mark tasks as failed to move on. You can also skip a day entirely using the <Text style={{ color: colors.red, fontWeight: '700' }}>SKIP DAY</Text> button.
-        </Text>
-        <Text style={{ color: colors.textMuted, fontSize: 11, lineHeight: 17, marginTop: 12 }}>
-          Planning future days will be unlocked once all past days are resolved.
-        </Text>
-      </FocalModal>
-
-      {/* ── [RESET_MODAL] ──────────────────────────────────────────────────
-           Edit the title, body text, and button labels here.
-      ─────────────────────────────────────────────────────────────────────── */}
+      {/* ── [RESET_MODAL] */}
       <FocalModal
         visible={showResetModal}
         colors={colors}
         title="RESET EVERYTHING?"
         onDismiss={() => setShowResetModal(false)}
         buttons={[
-          {
-            label: 'CANCEL',
-            variant: 'ghost',
-            onPress: () => setShowResetModal(false),
-          },
-          {
-            label: 'RESET ALL DATA',
-            variant: 'danger',
-            onPress: () => {
-              setShowResetModal(false);
-              handleReset();
-            },
-          },
+          { label: 'CANCEL',         variant: 'ghost',  onPress: () => setShowResetModal(false) },
+          { label: 'RESET ALL DATA', variant: 'danger', onPress: () => { setShowResetModal(false); handleReset(); } },
         ]}
       >
         <Text style={{ color: colors.textSub, fontSize: 13, lineHeight: 20 }}>
@@ -316,7 +241,7 @@ function AppInner() {
         </Text>
       </FocalModal>
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
+      {/* ── Header */}
       <TouchableOpacity activeOpacity={1} onPress={handleHeaderPress}>
         <View style={[styles.header, { backgroundColor: colors.bgCard, borderBottomColor: colors.red, paddingTop: insets.top + 8 }]}>
           <Animated.View style={[styles.headerInner, { transform: [{ scale: headerInnerScale }] }]}>
@@ -354,11 +279,11 @@ function AppInner() {
         </View>
       </TouchableOpacity>
 
-      {/* ── Body ──────────────────────────────────────────────────────────── */}
+      {/* ── Body */}
       <View style={styles.body}>
         {tab === 'planner' && (
           <DayView
-            dateKey={currentDateKey} dayData={dayData}
+            dateKey={currentDateKey} dayData={dayData} installDate={installDate}
             canGoBack={true} canGoForward={true}
             onPrev={handlePrev} onNext={handleNext}
             onGoToToday={handleGoToToday}
@@ -366,9 +291,8 @@ function AppInner() {
             onEdit={(s, t) => editTask(currentDateKey, s, t)}
             onComplete={s => completeTask(currentDateKey, s)}
             onFail={s => failTask(currentDateKey, s)}
-            onFailDay={() => failAllUnresolvedSlots(currentDateKey)}
             onDelete={s => deleteTask(currentDateKey, s)}
-            blockingDays={blockingDays} colors={colors}
+            colors={colors}
           />
         )}
         {tab === 'calendar' && (
@@ -386,7 +310,7 @@ function AppInner() {
         )}
       </View>
 
-      {/* ── Tab bar ───────────────────────────────────────────────────────── */}
+      {/* ── Tab bar */}
       <View style={[styles.tabBar, { backgroundColor: colors.bgCard, borderTopColor: colors.border, paddingBottom: insets.bottom + 4 }]}>
         {TABS.map((t, idx) => {
           const active = tab === t.id;
