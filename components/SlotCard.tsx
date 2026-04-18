@@ -122,19 +122,18 @@ export default function SlotCard({
 
     if (editing && task) {
       if (!val) {
-        // Name erased on an existing task:
-        // Past/today → becomes skipped (empty-named failed task)
-        // Future planned → delete it back to empty slot
-        if (isFuture) {
-          onDelete(slotId);
-        } else {
+        // Name erased:
+        // Future or Today → delete back to empty slot
+        // Past → becomes skipped with no name
+        if (isPast) {
           onFail(slotId);
+        } else {
+          onDelete(slotId);
         }
       } else {
         onEdit(slotId, val);
       }
     } else {
-      // Adding to an empty slot — only save if non-empty
       if (val) onAdd(slotId, val);
     }
 

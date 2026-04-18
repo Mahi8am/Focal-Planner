@@ -234,15 +234,16 @@ export default function DayView({
     <View style={{ flex: 1 }}>
       <AllCompleteOverlay visible={showOverlay} colors={colors} onDone={() => setShowOverlay(false)} />
       <ScrollView
-        style={[styles.container, { backgroundColor: colors.bg }]}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+          style={[styles.container, { backgroundColor: colors.bg }]}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          {...swipePan.panHandlers}
+        >
         <Animated.View style={{ opacity: fadeAnim }}>
 
           {/* Nav card */}
-          <View {...swipePan.panHandlers}>
+          <View>
             <View style={[styles.navCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
               <TouchableOpacity
                 onPress={onPrev} disabled={!canGoBack}

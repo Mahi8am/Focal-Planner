@@ -9,7 +9,7 @@ export function toDateKey(date: Date): string {
 
 // const DEV_FAKE_TODAY: string | null = null;
 
-const DEV_FAKE_TODAY = '2026-04-25';
+const DEV_FAKE_TODAY = '2026-04-27';
 // Example: '2026-04-25'
 // Set to null to disable
 

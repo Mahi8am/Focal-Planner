@@ -169,7 +169,7 @@ export function useStorage(resetKey: number = 0) {
   const failTask = useCallback(async (dateKey: string, slotId: SlotId) => {
     const existing = data.days[dateKey]?.tasks[slotId];
     const task: Task = existing
-      ? { ...existing, status: 'failed', completedAt: undefined }
+      ? { ...existing, title: '', status: 'failed', completedAt: undefined }
       : {
           id: generateId(),
           title: '',

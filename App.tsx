@@ -17,6 +17,8 @@ import {
   CalendarDays, BookOpen, Settings,
   CalendarCheck, CheckSquare, Palette, BookMarked,
 } from 'lucide-react-native';
+import { Sparkles, Skull, AlertTriangle, Zap, FlameKindling } from 'lucide-react-native';
+import { ScrollView } from 'react-native';
 import DayView from './components/DayView';
 import CalendarView from './components/CalendarView';
 import SettingsView from './components/SettingsView';
