@@ -19,14 +19,14 @@
  *   "Add task"             → empty future slot prompt   (search: EMPTY_FUTURE_PROMPT)
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, Animated, Keyboard,
 } from 'react-native';
 import { CheckCircle, Circle, Edit3, Trash2, Plus, Clock, XCircle } from 'lucide-react-native';
 import { Task, SlotId } from '../types';
-import { Colors } from '../constants';
+import { Colors, THEMES } from '../constants';
 import { useFidget } from '../hooks/useFidget';
 
 interface Props {
@@ -40,6 +40,9 @@ interface Props {
   onFail: (slotId: SlotId) => void;
   onDelete: (slotId: SlotId) => void;
   blocked?: boolean; colors: Colors; index: number; animKey: string;
+  cardIndex: number;
+  onSiblingTired: (excludeIndex: number) => void;
+  registerMoodSwing: (fn: () => void) => void;
 }
 
 const ENTRY_OFFSETS = [{ x: -80, y: -20 }, { x: 80, y: -20 }, { x: 0, y: 60 }];
@@ -48,6 +51,7 @@ export default function SlotCard({
   slotId, label, timeRange, task, isToday, isPast, isFuture,
   isBeforeInstall,
   onAdd, onEdit, onComplete, onFail, onDelete, blocked, colors, index, animKey,
+  cardIndex, onSiblingTired, registerMoodSwing,
 }: Props) {
 
   const [editing, setEditing]   = useState(false);
@@ -65,8 +69,60 @@ export default function SlotCard({
   const checkScale = useRef(new Animated.Value(1)).current;
 
   // Fidget
-  const cardScale = useRef(new Animated.Value(1)).current;
+  const cardScale  = useRef(new Animated.Value(1)).current;
+  const cardWobble = useRef(new Animated.Value(0)).current;
+  const stripeAnim = useRef(new Animated.Value(0)).current;
+  const [stripeColor, setStripeColor] = useState<string | null>(null);
+  const [visualStatus, setVisualStatus] = useState<'planned' | 'completed' | 'failed' | null>(null);
   const { onTap } = useFidget(cardScale);
+
+  const themeAccents = [colors.red, colors.completed, colors.failed];
+
+const statusCycle: Array<'planned' | 'completed' | 'failed'> = ['planned', 'completed', 'failed'];
+
+  const moodSwing = useCallback(() => {
+    let step = 0;
+    const cycleInterval = setInterval(() => {
+      const i = step % themeAccents.length;
+      setStripeColor(themeAccents[i]);
+      setVisualStatus(statusCycle[i]);
+      step++;
+    }, 80);
+    setTimeout(() => {
+      clearInterval(cycleInterval);
+      setStripeColor(null);
+      setVisualStatus(null);
+    }, 1400);
+  }, [themeAccents]);
+
+  useEffect(() => {
+    registerMoodSwing(moodSwing);
+  }, [moodSwing]);
+
+
+  const handleTired = () => {
+    // Stripe color cycle on this card
+    moodSwing();
+    // Trigger mood swing on the other two cards
+    onSiblingTired(cardIndex);
+
+    // Inflate like a balloon — scale up gently then back
+    Animated.sequence([
+      Animated.spring(cardScale, { toValue: 1.08, useNativeDriver: true, tension: 40, friction: 8 }),
+      Animated.delay(600),
+      Animated.spring(cardScale, { toValue: 1,    useNativeDriver: true, tension: 60, friction: 8 }),
+    ]).start();
+
+    // Slow side-to-side wobble like losing balance
+    Animated.sequence([
+      Animated.timing(cardWobble, { toValue:  8, duration: 200, useNativeDriver: true }),
+      Animated.timing(cardWobble, { toValue: -7, duration: 280, useNativeDriver: true }),
+      Animated.timing(cardWobble, { toValue:  5, duration: 260, useNativeDriver: true }),
+      Animated.timing(cardWobble, { toValue: -4, duration: 240, useNativeDriver: true }),
+      Animated.timing(cardWobble, { toValue:  2, duration: 200, useNativeDriver: true }),
+      Animated.timing(cardWobble, { toValue:  0, duration: 160, useNativeDriver: true }),
+    ]).start();
+  };
 
   // Button press
   const btnScale    = useRef(new Animated.Value(1)).current;
@@ -98,10 +154,11 @@ export default function SlotCard({
     ]).start();
   };
 
-  const isSkipped   = task?.status === 'failed';
-  const isCompleted = task?.status === 'completed';
-  const isPlanned   = task?.status === 'planned';
-  const isEmpty     = !task;
+  const effectiveStatus = visualStatus ?? task?.status ?? null;
+  const isSkipped   = effectiveStatus === 'failed';
+  const isCompleted = effectiveStatus === 'completed';
+  const isPlanned   = effectiveStatus === 'planned';
+  const isEmpty     = !task && !visualStatus;
 
   // All tasks have editable names at all times
   // Show input when empty OR actively editing
@@ -141,28 +198,36 @@ export default function SlotCard({
   };
 
   // Stripe colour: skipped = failed color, completed = completed color, else accent
-  const stripeColor = isSkipped
+  const baseStripeColor = isSkipped
     ? colors.failed
     : isCompleted ? colors.completed : colors.red;
 
   const flashBg = flashAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ['transparent', `${colors.red}30`],
+    outputRange: ['rgba(0,0,0,0)', `${colors.red}30`],
   });
 
   const combinedScale = Animated.multiply(entryScale, cardScale);
+  const combinedTransform = [
+    { translateX: entryX },
+    { translateY: entryY },
+    { scale: combinedScale },
+    { rotate: cardWobble.interpolate({ inputRange: [-10, 10], outputRange: ['-10deg', '10deg'] }) },
+  ];
 
   return (
     <Animated.View style={[styles.cardWrap, {
       opacity: entryOpacity,
-      transform: [{ translateX: entryX }, { translateY: entryY }, { scale: combinedScale }],
-    }]}>
-      <TouchableOpacity activeOpacity={1} onPress={() => onTap()}>
+      transform: combinedTransform,
+    }]}
+      renderToHardwareTextureAndroid
+    >
+      <TouchableOpacity activeOpacity={1} onPress={() => onTap(handleTired, undefined)}>
         <View style={[
           styles.card,
           { backgroundColor: colors.bgCard, borderColor: colors.border },
         ]}>
-          <View style={[styles.stripe, { backgroundColor: stripeColor }]} />
+          <View style={[styles.stripe, { backgroundColor: stripeColor ?? baseStripeColor }]} />
           <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: flashBg, zIndex: 1 }]} pointerEvents="none" />
 
           <View style={styles.inner}>
@@ -311,7 +376,7 @@ export default function SlotCard({
 
 const styles = StyleSheet.create({
   cardWrap:  { marginBottom: 14 },
-  card:      { borderRadius: 8, borderWidth: 1, flexDirection: 'row', overflow: 'hidden', minHeight: 100, elevation: 3, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 3 },
+card: { borderRadius: 8, borderWidth: 1, flexDirection: 'row', overflow: 'hidden', minHeight: 100, elevation: 1, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.08, shadowRadius: 2 },
   stripe:    { width: 5 },
   inner:     { flex: 1, padding: 14, zIndex: 2 },
   header:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },

@@ -85,6 +85,8 @@ export default function DayView({
   const prevDateKeyRef   = useRef(dateKey);
   const overlayShownRef  = useRef(false);
 
+  const siblingTiredRefs = useRef<Array<(() => void) | null>>([null, null, null]);
+
   // Stable refs for PanResponder
   const onPrevRef       = useRef(onPrev);
   const onNextRef       = useRef(onNext);
@@ -214,18 +216,41 @@ export default function DayView({
 
   // Nav card fidget + long-press to go to today
   const navCardScale = useRef(new Animated.Value(1)).current;
+  const badgeScale   = useRef(new Animated.Value(1)).current;
   const { onTap: navCardTap } = useFidget(navCardScale);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired    = useRef(false);
 
-  const handleMiddlePressIn  = useCallback(() => {
-    longPressTimer.current = setTimeout(() => { onGoToTodayRef.current(); }, 500);
+  const handleBadgeTired = useCallback(() => {
+    badgeScale.stopAnimation();
+    Animated.sequence([
+      Animated.spring(badgeScale, { toValue: 2.8, useNativeDriver: true, tension: 60, friction: 5 }),
+      Animated.delay(120),
+      Animated.spring(badgeScale, { toValue: 1,   useNativeDriver: true, tension: 180, friction: 8 }),
+    ]).start();
+  }, [badgeScale]);
+
+  const handleMiddlePressIn = useCallback(() => {
+    longPressFired.current = false;
+    longPressTimer.current = setTimeout(() => {
+      longPressFired.current = true;
+      onGoToTodayRef.current();
+    }, 500);
   }, []);
+
   const handleMiddlePressOut = useCallback(() => {
-    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
   }, []);
-  const handleMiddlePress    = useCallback(() => {
-    if (longPressTimer.current !== null) navCardTap();
-  }, [navCardTap]);
+
+  const handleMiddlePress = useCallback(() => {
+    // Only fire fidget if long press did NOT fire
+    if (!longPressFired.current) {
+      navCardTap(handleBadgeTired, undefined);
+    }
+  }, [navCardTap, handleBadgeTired]);
 
   const getDayLabel = () => today ? 'TODAY' : past ? 'PAST' : 'UPCOMING';
   const progressColor = failedCount > 0 && completedCount === 0 ? colors.failed : colors.red;
@@ -244,7 +269,7 @@ export default function DayView({
 
           {/* Nav card */}
           <View>
-            <View style={[styles.navCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+            <Animated.View style={[styles.navCard, { backgroundColor: colors.bgCard, borderColor: colors.border, transform: [{ scale: navCardScale }] }]}>
               <TouchableOpacity
                 onPress={onPrev} disabled={!canGoBack}
                 style={styles.navBtnLarge} activeOpacity={0.6}
@@ -259,15 +284,16 @@ export default function DayView({
                 onPress={handleMiddlePress}
                 delayPressIn={0}
               >
-                <Animated.View style={[styles.navMiddleContent, { transform: [{ scale: navCardScale }] }]}>
-                  <View style={[styles.dayBadge, {
+                <Animated.View style={styles.navMiddleContent}>
+                  <Animated.View style={[styles.dayBadge, {
                     backgroundColor: today ? colors.red : colors.bgElevated,
                     borderColor: today ? colors.red : colors.border,
+                    transform: [{ scale: badgeScale }],
                   }]}>
                     <Text style={[styles.dayBadgeText, { color: today ? '#FFF' : colors.red }]}>
                       {getDayLabel()}
                     </Text>
-                  </View>
+                  </Animated.View>
                   <Animated.Text style={[styles.dateText, { color: colors.text, transform: [{ translateY: textSlideY }] }]}>
                     {formatDisplayDate(dateKey)}
                   </Animated.Text>
@@ -290,7 +316,7 @@ export default function DayView({
               >
                 <ChevronRight size={24} color={canGoForward ? colors.text : colors.grey} />
               </TouchableOpacity>
-            </View>
+            </Animated.View>
           </View>
 
           {/* Progress */}
@@ -311,6 +337,7 @@ export default function DayView({
           </View>
 
           {/* Slot cards */}
+          
           {SLOTS.map((slot, index) => (
             <SlotCard
               key={slot.id} slotId={slot.id} label={slot.label} timeRange={slot.timeRange}
@@ -320,6 +347,13 @@ export default function DayView({
               onAdd={onAdd} onEdit={onEdit} onComplete={onComplete}
               onFail={onFail} onDelete={onDelete}
               blocked={false} colors={colors} index={index} animKey={animKey}
+              cardIndex={index}
+              onSiblingTired={(excludeIndex) => {
+                SLOTS.forEach((_, i) => {
+                  if (i !== excludeIndex) siblingTiredRefs.current[i]?.();
+                });
+              }}
+              registerMoodSwing={(fn) => { siblingTiredRefs.current[index] = fn; }}
             />
           ))}
 

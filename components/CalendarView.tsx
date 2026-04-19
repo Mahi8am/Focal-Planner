@@ -416,21 +416,13 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
       brokenLockRef.current = false;
     }
 
-    detailSlideX.setValue(dir * 40);
-    detailOpacity.setValue(0.5);
+    detailSlideX.setValue(dir * 28);
+    detailOpacity.setValue(0.3);
     setSelectedDateKey(newKey);
 
     Animated.parallel([
-      Animated.timing(detailSlideX, {
-        toValue: 0,
-        duration: 160,
-        useNativeDriver: true,
-      }),
-      Animated.timing(detailOpacity, {
-        toValue: 1,
-        duration: 120,
-        useNativeDriver: true,
-      }),
+      Animated.spring(detailSlideX,  { toValue: 0, useNativeDriver: true, tension: 80, friction: 11 }),
+      Animated.timing(detailOpacity, { toValue: 1, duration: 180, useNativeDriver: true }),
     ]).start();
 
     // Also pulse the scale on day change
@@ -789,16 +781,12 @@ export default function CalendarView({ data, onGoToDay, colors }: Props) {
 
       {/* Detail panel */}
       <Animated.View
-        style={[
-          styles.dayDetail,
-          {
-            backgroundColor: colors.bgCard,
-            borderColor: colors.border,
-            transform: [{ translateX: detailSlideX }, { scale: detailScale }],
-            opacity: detailOpacity,
-            overflow: "hidden",
-          },
-        ]}
+        style={[styles.dayDetail, {
+          backgroundColor: colors.bgCard, borderColor: colors.border,
+          transform: [{ translateX: detailSlideX }, { scale: detailScale }],
+          opacity: detailOpacity, overflow: 'hidden',
+        }]}
+        renderToHardwareTextureAndroid
         {...detailPan.panHandlers}
       >
         <TouchableOpacity

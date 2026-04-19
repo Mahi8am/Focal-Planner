@@ -6,7 +6,7 @@ export const SLOTS: { id: SlotId; label: string; timeRange: string }[] = [
   { id: 'evening',   label: 'EVENING',   timeRange: '6PM – 12AM' },
 ];
 
-export type ColorTheme = 'persona' | 'phantom' | 'velvet' | 'azure' | 'emerald' | 'crimson' | 'sakura' | 'neon';
+export type ColorTheme = 'persona' | 'phantom' | 'velvet' | 'azure' | 'emerald' | 'crimson' | 'sakura' | 'neon' | 'navy';
 export const THEMES: Record<ColorTheme, { name: string; accent: string; accentDark: string }> = {
   persona: { name: 'PERSONA RED',    accent: '#E8002A', accentDark: '#A30020' },
   phantom: { name: 'PHANTOM GOLD',   accent: '#D4A017', accentDark: '#8B6800' },
@@ -16,24 +16,27 @@ export const THEMES: Record<ColorTheme, { name: string; accent: string; accentDa
   crimson: { name: 'CRIMSON STEEL',  accent: '#FF4444', accentDark: '#AA0000' },
   sakura:  { name: 'SAKURA BLOOM',   accent: '#FF6B9D', accentDark: '#C0396A' },
   neon:    { name: 'NEON CIRCUIT',   accent: '#00FFCC', accentDark: '#009977' },
+  navy:    { name: 'NAVY BLUE',      accent: '#3d5064', accentDark: '#2C3947' },
 };
 
-export type CompletedColor = 'green' | 'teal' | 'lime' | 'sky' | 'orange';
+export type CompletedColor = 'green' | 'teal' | 'lime' | 'sky' | 'orange' | 'washed';
 export const COMPLETED_COLORS: Record<CompletedColor, { name: string; hex: string; glow: string }> = {
-  green:  { name: 'LEAF GREEN',    hex: '#2ECC71', glow: 'rgba(46,204,113,0.15)'  },
-  teal:   { name: 'TEAL WAVE',     hex: '#1ABC9C', glow: 'rgba(26,188,156,0.15)'  },
-  lime:   { name: 'ELECTRIC LIME', hex: '#A8E063', glow: 'rgba(168,224,99,0.15)'  },
-  sky:    { name: 'SKY BLUE',      hex: '#3498DB', glow: 'rgba(52,152,219,0.15)'  },
-  orange: { name: 'EMBER ORANGE',  hex: '#E67E22', glow: 'rgba(230,126,34,0.15)'  },
+  green:   { name: 'LEAF GREEN',    hex: '#2ECC71', glow: 'rgba(46,204,113,0.15)'     },
+  teal:    { name: 'TEAL WAVE',     hex: '#1ABC9C', glow: 'rgba(26,188,156,0.15)'     },
+  lime:    { name: 'ELECTRIC LIME', hex: '#A8E063', glow: 'rgba(168,224,99,0.15)'     },
+  sky:     { name: 'SKY BLUE',      hex: '#3498DB', glow: 'rgba(52,152,219,0.15)'     },
+  orange:  { name: 'EMBER ORANGE',  hex: '#E67E22', glow: 'rgba(230,126,34,0.15)'     },
+  washed:  { name: 'WASHED BLUE',   hex: '#547A95', glow: 'rgba(36, 122, 161, 0.15)'  },
 };
 
-export type FailedColor = 'crimsonRed' | 'deepRed' | 'burntOrange' | 'warnYellow' | 'hotPink';
+export type FailedColor = 'crimsonRed' | 'deepRed' | 'burntOrange' | 'warnYellow' | 'hotPink' | 'brown';
 export const FAILED_COLORS: Record<FailedColor, { name: string; hex: string; glow: string }> = {
   crimsonRed:  { name: 'CRIMSON RED',   hex: '#E53935', glow: 'rgba(229,57,53,0.15)'  },
   deepRed:     { name: 'DEEP RED',      hex: '#B71C1C', glow: 'rgba(183,28,28,0.15)'  },
   burntOrange: { name: 'BURNT ORANGE',  hex: '#E64A19', glow: 'rgba(230,74,25,0.15)'  },
   warnYellow:  { name: 'WARNING AMBER', hex: '#F9A825', glow: 'rgba(249,168,37,0.15)' },
   hotPink:     { name: 'NEON ROSE',     hex: '#D81B60', glow: 'rgba(216,27,96,0.15)'  },
+  brown:       { name: 'IRON BROWN',     hex: '#C2A56D', glow: 'rgba(216,27,96,0.15)'  },
 };
 
 export function buildColors(isDark: boolean, accentHex: string, accentDarkHex: string, completedHex: string, completedGlow: string, failedHex: string, failedGlow: string) {

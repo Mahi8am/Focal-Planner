@@ -9,7 +9,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Animated, Switch,
+  ScrollView, Animated, Switch, Linking, Image
 } from 'react-native';
 import { Sun, Moon, Info, RotateCcw, HelpCircle } from 'lucide-react-native';
 import {
@@ -39,7 +39,7 @@ function pulseScale(anim: Animated.Value, delay: number = 0) {
 }
 
 /** A card that pulses on mount and is tappable for fidget */
-function PulseCard({ children, style, delay = 0 }: { children: React.ReactNode; style?: any; delay?: number }) {
+function PulseCard({ children, style, delay = 0, onTired }: { children: React.ReactNode; style?: any; delay?: number; onTired?: () => void }) {
   const scale = useRef(new Animated.Value(1)).current;
   const { onTap } = useFidget(scale);
 
@@ -48,7 +48,7 @@ function PulseCard({ children, style, delay = 0 }: { children: React.ReactNode; 
   }, []);
 
   return (
-    <TouchableOpacity activeOpacity={1} onPress={() => onTap()}>
+    <TouchableOpacity activeOpacity={1} onPress={() => onTap(onTired, undefined)}>
       <Animated.View style={[style, { transform: [{ scale }] }]}>{children}</Animated.View>
     </TouchableOpacity>
   );
@@ -73,7 +73,7 @@ function AboutCard({ colors, style, onShowHelp, delay = 0 }: { colors: Colors; s
     );
   };
 
-  return (
+return (
     <TouchableOpacity activeOpacity={1} onPress={handleTap}>
       <Animated.View style={[style, { transform: [{ scale }] }]}>
         <View style={[styles.cardStripe, { backgroundColor: colors.red }]} />
@@ -89,17 +89,29 @@ function AboutCard({ colors, style, onShowHelp, delay = 0 }: { colors: Colors; s
               ) : (
                 <>
                   <Text style={[styles.rowTitle, { color: colors.text }]}>Focal Planner</Text>
-                  <Text style={[styles.rowSub, { color: colors.textMuted }]}>Persona 5 inspired daily diary · v1.0</Text>
+                  <Text style={[styles.rowSub, { color: colors.textMuted }]}>© 2026 Mahi8am. All rights reserved.</Text>
                 </>
               )}
             </View>
+            <TouchableOpacity
+              onPress={() => Linking.openURL('https://github.com/Mahi8am/Focal-Planner')}
+              activeOpacity={0.7}
+              style={styles.helpBtn}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Image
+                source={require('../assets/GitHub_Invertocat_Black.png')}
+                style={{ width: 28, height: 28, tintColor: colors.red }}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={onShowHelp}
               activeOpacity={0.7}
               style={styles.helpBtn}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <HelpCircle size={20} color={colors.red} />
+              <HelpCircle size={28} color={colors.red} />
             </TouchableOpacity>
           </View>
         </View>
@@ -135,7 +147,7 @@ export default function SettingsView({
 
         {/* APPEARANCE */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>APPEARANCE</Text>
-        <PulseCard delay={0} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+        <PulseCard delay={0} onTired={toggleTheme} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
           <View style={[styles.cardStripe, { backgroundColor: colors.red }]} />
           <View style={styles.cardInner}>
             <View style={styles.row}>
