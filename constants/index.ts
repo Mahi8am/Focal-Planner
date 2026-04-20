@@ -6,37 +6,48 @@ export const SLOTS: { id: SlotId; label: string; timeRange: string }[] = [
   { id: 'evening',   label: 'EVENING',   timeRange: '6PM – 12AM' },
 ];
 
-export type ColorTheme = 'persona' | 'phantom' | 'velvet' | 'azure' | 'emerald' | 'crimson' | 'sakura' | 'neon' | 'navy';
+export type ColorTheme = 'royal' | 'phantom' | 'velvet' | 'azure' | 'emerald' | 'crimson' | 'sakura' | 'purple' | 'navy' |'charcoal' | 'dandelion' | 'fire' | 'cherry' | 'wine' | 'dyedBlue' ;
 export const THEMES: Record<ColorTheme, { name: string; accent: string; accentDark: string }> = {
-  persona: { name: 'PERSONA RED',    accent: '#E8002A', accentDark: '#A30020' },
-  phantom: { name: 'PHANTOM GOLD',   accent: '#D4A017', accentDark: '#8B6800' },
-  velvet:  { name: 'VELVET VIOLET',  accent: '#8B2FC9', accentDark: '#5A1A85' },
-  azure:   { name: 'AZURE BLADE',    accent: '#0066FF', accentDark: '#0040AA' },
-  emerald: { name: 'EMERALD GHOST',  accent: '#00C875', accentDark: '#007A47' },
-  crimson: { name: 'CRIMSON STEEL',  accent: '#FF4444', accentDark: '#AA0000' },
-  sakura:  { name: 'SAKURA BLOOM',   accent: '#FF6B9D', accentDark: '#C0396A' },
-  neon:    { name: 'NEON CIRCUIT',   accent: '#00FFCC', accentDark: '#009977' },
-  navy:    { name: 'NAVY BLUE',      accent: '#3d5064', accentDark: '#2C3947' },
+  azure:     { name: 'AZURE BLADE',    accent: '#4C8CE4', accentDark: '#0040AA' },
+  dyedBlue:  { name: 'DYED BLUE',      accent: '#6367FF', accentDark: '#4c4e97' },
+  navy:      { name: 'NAVY BLUE',      accent: '#3d5064', accentDark: '#2C3947' },
+  charcoal:  { name: 'CHARCOAL BLUE',  accent: '#2D4059', accentDark: '#2C3947' },
+  emerald:   { name: 'EMERALD GHOST',  accent: '#2FA084', accentDark: '#007A47' },
+  phantom:   { name: 'PHANTOM GOLD',   accent: '#D4A017', accentDark: '#8B6800' },
+  dandelion: { name: 'DANDELION',      accent: '#FFD460', accentDark: '#d8b043' },
+  sakura:    { name: 'SAKURA BLOOM',   accent: '#FF6B9D', accentDark: '#C0396A' },
+  velvet:    { name: 'VELVET VIOLET',  accent: '#982598', accentDark: '#5A1A85' },
+  purple:    { name: 'BLACK PEARL',    accent: '#635985', accentDark: '#423861' },
+  cherry:    { name: 'BERRY RED',      accent: '#5D0E41', accentDark: '#440f31' },
+  wine:      { name: 'WINE GLASS',     accent: '#A0153E', accentDark: '#74253c' },
+  fire:      { name: 'FIRE RED',       accent: '#EA5455', accentDark: '#c44444' },
+  crimson:   { name: 'CRIMSON STEEL',  accent: '#FF4444', accentDark: '#AA0000' },
+  royal:     { name: 'ROYAL RED',      accent: '#E8002A', accentDark: '#A30020' },
 };
 
-export type CompletedColor = 'green' | 'teal' | 'lime' | 'sky' | 'orange' | 'washed';
+export type CompletedColor = 'green' | 'teal' | 'lime' | 'sky' | 'orange' | 'washed' | 'dandelion' | 'salmon' | 'glass';
 export const COMPLETED_COLORS: Record<CompletedColor, { name: string; hex: string; glow: string }> = {
-  green:   { name: 'LEAF GREEN',    hex: '#2ECC71', glow: 'rgba(46,204,113,0.15)'     },
-  teal:    { name: 'TEAL WAVE',     hex: '#1ABC9C', glow: 'rgba(26,188,156,0.15)'     },
-  lime:    { name: 'ELECTRIC LIME', hex: '#A8E063', glow: 'rgba(168,224,99,0.15)'     },
-  sky:     { name: 'SKY BLUE',      hex: '#3498DB', glow: 'rgba(52,152,219,0.15)'     },
-  orange:  { name: 'EMBER ORANGE',  hex: '#E67E22', glow: 'rgba(230,126,34,0.15)'     },
-  washed:  { name: 'WASHED BLUE',   hex: '#547A95', glow: 'rgba(36, 122, 161, 0.15)'  },
+  glass:     { name: 'GLASS BLUE',    hex: '#BBDCE5', glow: 'rgba(187, 220, 229, 0.15)' },
+  sky:       { name: 'SKY BLUE',      hex: '#3498DB', glow: 'rgba(52,152,219,0.15)'     },
+  washed:    { name: 'WASHED BLUE',   hex: '#547A95', glow: 'rgba(36, 122, 161, 0.15)'  },
+  teal:      { name: 'TEAL WAVE',     hex: '#1ABC9C', glow: 'rgba(26,188,156,0.15)'     },
+  green:     { name: 'LEAF GREEN',    hex: '#2ECC71', glow: 'rgba(46,204,113,0.15)'     },
+  lime:      { name: 'ELECTRIC LIME', hex: '#A8E063', glow: 'rgba(168,224,99,0.15)'     },
+  dandelion: { name: 'DANDELION',     hex: '#FFD460', glow: 'rgba(255, 212, 96, 0.15)'  },
+  orange:    { name: 'EMBER ORANGE',  hex: '#E67E22', glow: 'rgba(230,126,34,0.15)'     },
+  salmon:    { name: 'SUNNY SIDE',    hex: '#FF9A86', glow: 'rgba(227, 106, 106, 0.15)' },
 };
 
-export type FailedColor = 'crimsonRed' | 'deepRed' | 'burntOrange' | 'warnYellow' | 'hotPink' | 'brown';
+export type FailedColor = 'crimsonRed' | 'deepRed' | 'burntOrange' | 'warnYellow' | 'hotPink' | 'sand' | 'fire' | 'brown';
 export const FAILED_COLORS: Record<FailedColor, { name: string; hex: string; glow: string }> = {
-  crimsonRed:  { name: 'CRIMSON RED',   hex: '#E53935', glow: 'rgba(229,57,53,0.15)'  },
-  deepRed:     { name: 'DEEP RED',      hex: '#B71C1C', glow: 'rgba(183,28,28,0.15)'  },
-  burntOrange: { name: 'BURNT ORANGE',  hex: '#E64A19', glow: 'rgba(230,74,25,0.15)'  },
-  warnYellow:  { name: 'WARNING AMBER', hex: '#F9A825', glow: 'rgba(249,168,37,0.15)' },
-  hotPink:     { name: 'NEON ROSE',     hex: '#D81B60', glow: 'rgba(216,27,96,0.15)'  },
-  brown:       { name: 'IRON BROWN',     hex: '#C2A56D', glow: 'rgba(216,27,96,0.15)'  },
+  sand:        { name: 'IRON SAND',      hex: '#C2A56D', glow: 'rgba(194,165,109,0.15)' },
+  brown:       { name: 'LEATHER BROWN',  hex: '#715A5A', glow: 'rgba(113, 90, 90,0.15)' },
+  warnYellow:  { name: 'WARNING AMBER',  hex: '#F9A825', glow: 'rgba(249,168,37,0.15)'  },
+  burntOrange: { name: 'BURNT ORANGE',   hex: '#E64A19', glow: 'rgba(230,74,25,0.15)'   },
+  hotPink:     { name: 'NEON ROSE',      hex: '#D81B60', glow: 'rgba(216,27,96,0.15)'   },
+  fire:        { name: 'FIRE RED',       hex: '#EA5455', glow: 'rgba(234, 84, 85,0.15)' },
+  crimsonRed:  { name: 'CRIMSON RED',    hex: '#E53935', glow: 'rgba(229,57,53,0.15)'   },
+  deepRed:     { name: 'DEEP RED',       hex: '#B71C1C', glow: 'rgba(183,28,28,0.15)'   },
 };
 
 export function buildColors(isDark: boolean, accentHex: string, accentDarkHex: string, completedHex: string, completedGlow: string, failedHex: string, failedGlow: string) {

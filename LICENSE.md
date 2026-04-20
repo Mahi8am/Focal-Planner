@@ -48,14 +48,5 @@ no copyright over generated outputs.
 
 ---
 
-## Design Inspiration
-
-The visual style of this app draws inspiration from the aesthetic
-direction of Atlus's Persona series. No assets, trademarks, characters,
-or intellectual property from the Persona series are used or reproduced
-in this project.
-
----
-
 *Focal Planner is a personal productivity app and is not affiliated with,
 endorsed by, or connected to any third party mentioned above.*
