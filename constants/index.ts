@@ -100,6 +100,7 @@ export const DAILY_QUOTES = [
   'You do not rise to your goals. You fall to your systems.',
   'One task at a time. That is enough.',
   'Show up. That is half the battle.',
+  'Be Intentional.',
 ];
 
 export const FUNNY_QUOTES = [

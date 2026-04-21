@@ -166,7 +166,7 @@ export default function SettingsView({
         </PulseCard>
 
         {/* ACCENT COLOR */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>ACCENT COLOR</Text>
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>PRIMARY COLOR</Text>
         <PulseCard delay={60} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
           <View style={[styles.cardStripe, { backgroundColor: colors.red }]} />
           <View style={styles.cardInner}>
@@ -188,7 +188,7 @@ export default function SettingsView({
         </PulseCard>
 
         {/* COMPLETED COLOR */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>COMPLETED COLOR</Text>
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>SECONDARY COLOR</Text>
         <PulseCard delay={120} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
           <View style={[styles.cardStripe, { backgroundColor: colors.completed }]} />
           <View style={styles.cardInner}>
@@ -210,7 +210,7 @@ export default function SettingsView({
         </PulseCard>
 
         {/* FAILED TASK COLOR */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>SKIPPED TASK COLOR</Text>
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>TERTIARY COLOR</Text>
         <PulseCard delay={180} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
           <View style={[styles.cardStripe, { backgroundColor: colors.failed }]} />
           <View style={styles.cardInner}>

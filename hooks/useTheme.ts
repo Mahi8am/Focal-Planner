@@ -9,9 +9,9 @@ export { Colors, ColorTheme, CompletedColor, FailedColor };
 
 export function useTheme() {
   const [theme, setTheme]               = useState<Theme>('dark');
-  const [colorTheme, setColorThemeState]= useState<ColorTheme>('persona');
-  const [completedColor, setCompletedColorState] = useState<CompletedColor>('green');
-  const [failedColor, setFailedColorState]       = useState<FailedColor>('crimsonRed');
+  const [colorTheme, setColorThemeState]= useState<ColorTheme>('fire');
+  const [completedColor, setCompletedColorState] = useState<CompletedColor>('washed');
+  const [failedColor, setFailedColorState]       = useState<FailedColor>('sand');
 
   useEffect(() => {
     Promise.all([
